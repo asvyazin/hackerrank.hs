@@ -3,6 +3,7 @@ module Main (main) where
 import Control.Applicative
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.State
+import Data.List (find)
 import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Set as S
@@ -72,15 +73,41 @@ unknownCell board p = case M.lookup p board of
   Just Unknown -> True
   _ -> False
 
+carrierHuntingPoints :: [Point]
+carrierHuntingPoints = [(x, x) | x <- [0..9]] ++ [(x, 5 + x) | x <- [0..4]] ++ [(5 + x, x) | x <- [0..4]]
+
+battleshipHuntingPoints :: [Point]
+battleshipHuntingPoints = [(0, 9), (9, 0)] ++ [(x + 2, x) | x <- [0..7]] ++ [(x, x + 2) | x <- [0..7]]
+
+cruiserHuntingPoints :: [Point]
+cruiserHuntingPoints = [(x + 7, x) | x <- [0..2]] ++ [(x, x + 7) | x <- [0..2]]
+
+destroyerHuntingPoints :: [Point]
+destroyerHuntingPoints = [(x + 4, x) | x <- [0..5]] ++ [(x, x + 4) | x <- [0..5]]
+
+submarineHuntingPoints :: [Point]
+submarineHuntingPoints = [(x, y) | x <-[0..9], y <- [0..9]]
+
+tryHuntShip :: [Point] -> Board -> Maybe Point
+tryHuntShip huntingPoints board = find (unknownCell board) huntingPoints
+
+cellsByType :: Board -> CellType -> [Point]
+cellsByType board cellType = M.keys $ M.filter (== cellType) board
+
 tryFinishOff :: Board -> Maybe Point
-tryFinishOff board = let hitCells = M.keys $ M.filter (== Hit) board in
+tryFinishOff board = let hitCells = cellsByType board Hit in
   wave (neighboursToHit board) (unknownCell board) hitCells
 
 moveToFirstUnknown :: Board -> Maybe Point
-moveToFirstUnknown board = Just $ head $ M.keys $ M.filter (== Unknown) board
+moveToFirstUnknown board = Just $ head $ cellsByType board Unknown
 
 tryMove :: Board -> Maybe Point
-tryMove board = tryFinishOff board <|> moveToFirstUnknown board
+tryMove board = tryFinishOff board <|>
+                (tryHuntShip carrierHuntingPoints board) <|>
+                (tryHuntShip battleshipHuntingPoints board) <|>
+                (tryHuntShip cruiserHuntingPoints board) <|>
+                (tryHuntShip destroyerHuntingPoints board) <|>
+                (tryHuntShip submarineHuntingPoints board)
 
 main :: IO ()
 main = do
