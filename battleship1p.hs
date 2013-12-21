@@ -1,4 +1,4 @@
-module Main (main) where
+module Battleship1p (main) where
 
 import Control.Applicative
 import Control.Monad.Trans.Class
@@ -7,31 +7,6 @@ import Data.List (find)
 import Data.Maybe
 import qualified Data.Map as M
 import qualified Data.Set as S
-
-type WaveState a = ([a], S.Set a)
-
-setInsertAll :: Ord a => [a] -> S.Set a -> S.Set a
-setInsertAll l s = foldl (\s1 e -> S.insert e s1) s l
-
-tryHead :: [a] -> Maybe (a, [a])
-tryHead [] = Nothing
-tryHead (x:xs) = Just (x, xs)
-
-waveState :: Ord a => (a -> [a]) -> (a -> Bool) -> StateT (WaveState a) Maybe a
-waveState neighbours target = do
-  (q, visited) <- get
-  (x, xs) <- lift $ tryHead q
-  if target x
-    then return x
-    else do
-    let notVisitedNeighbours = filter (`S.notMember` visited) $ neighbours x
-    let newQ = xs ++ notVisitedNeighbours
-    let newVisited = setInsertAll notVisitedNeighbours visited
-    put (newQ, newVisited)
-    waveState neighbours target
-
-wave :: Ord a => (a -> [a]) -> (a -> Bool) -> [a] -> Maybe a
-wave neighbours target starts = evalStateT (waveState neighbours target) (starts, S.fromList starts)
 
 type Point = (Int, Int)
 data CellType = Hit | Miss | Destroyed | Unknown deriving (Eq, Show)
@@ -55,23 +30,25 @@ readBoard = do
   ls <- lines <$> getContents
   return $ M.fromList $ linesToBoard ls
 
-neighboursAll :: Point -> [Point]
-neighboursAll (row, column) = [(x, column) | x <- filter inBorders [row - 1, row + 1]] ++ [(row, y) | y <- filter inBorders [column - 1, column + 1]]
-  where inBorders i = i >= 0 && i < 10
+allNeighbours2 :: Board -> Point -> [[Point]]
+allNeighbours2 board (row, column) = [[(row - 1, column), (row - 2, column)],
+                                      [(row, column + 1), (row, column + 2)],
+                                      [(row + 1, column), (row + 2, column)],
+                                      [(row, column - 1), (row, column - 2)]]
 
-neighboursToHit :: Board -> Point -> [Point]
-neighboursToHit board p = filter possibleToHit $ neighboursAll p
-  where possibleToHit neighbour = case M.lookup neighbour board of
-          Nothing -> False
-          Just Unknown -> True
-          Just Hit -> True
-          _ -> False
+tryFinishOff2 :: Board -> Maybe Point
+tryFinishOff2 board = find (\p -> any (all $ cellHasType Hit board) $ allNeighbours2 board p) $ cellsByType board Unknown
 
-unknownCell :: Board -> Point -> Bool
-unknownCell board p = case M.lookup p board of
+allNeighbours :: Board -> Point -> [Point]
+allNeighbours board (row, column) = [(row - 1, column), (row, column + 1), (row + 1, column), (row, column - 1)]
+
+tryFinishOff :: Board -> Maybe Point
+tryFinishOff board = find (any (cellHasType Hit board) . allNeighbours board) $ cellsByType board Unknown
+
+cellHasType :: CellType -> Board -> Point -> Bool
+cellHasType cellType board p = case M.lookup p board of
   Nothing -> False
-  Just Unknown -> True
-  _ -> False
+  Just x -> x == cellType
 
 carrierHuntingPoints :: [Point]
 carrierHuntingPoints = [(x, x) | x <- [0..9]] ++ [(x, 5 + x) | x <- [0..4]] ++ [(5 + x, x) | x <- [0..4]]
@@ -89,25 +66,19 @@ submarineHuntingPoints :: [Point]
 submarineHuntingPoints = [(x, y) | x <-[0..9], y <- [0..9]]
 
 tryHuntShip :: [Point] -> Board -> Maybe Point
-tryHuntShip huntingPoints board = find (unknownCell board) huntingPoints
+tryHuntShip huntingPoints board = find (cellHasType Unknown board) huntingPoints
 
 cellsByType :: Board -> CellType -> [Point]
 cellsByType board cellType = M.keys $ M.filter (== cellType) board
 
-tryFinishOff :: Board -> Maybe Point
-tryFinishOff board = let hitCells = cellsByType board Hit in
-  wave (neighboursToHit board) (unknownCell board) hitCells
-
-moveToFirstUnknown :: Board -> Maybe Point
-moveToFirstUnknown board = Just $ head $ cellsByType board Unknown
-
 tryMove :: Board -> Maybe Point
-tryMove board = tryFinishOff board <|>
-                (tryHuntShip carrierHuntingPoints board) <|>
-                (tryHuntShip battleshipHuntingPoints board) <|>
-                (tryHuntShip cruiserHuntingPoints board) <|>
-                (tryHuntShip destroyerHuntingPoints board) <|>
-                (tryHuntShip submarineHuntingPoints board)
+tryMove board = tryFinishOff2 board <|>
+                tryFinishOff board <|>
+                tryHuntShip carrierHuntingPoints board <|>
+                tryHuntShip battleshipHuntingPoints board <|>
+                tryHuntShip cruiserHuntingPoints board <|>
+                tryHuntShip destroyerHuntingPoints board <|>
+                tryHuntShip submarineHuntingPoints board
 
 main :: IO ()
 main = do
