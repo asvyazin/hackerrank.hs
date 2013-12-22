@@ -1,12 +1,7 @@
-module Battleship1p (main) where
-
 import Control.Applicative
-import Control.Monad.Trans.Class
-import Control.Monad.Trans.State
 import Data.List (find)
 import Data.Maybe
 import qualified Data.Map as M
-import qualified Data.Set as S
 
 type Point = (Int, Int)
 data CellType = Hit | Miss | Destroyed | Unknown deriving (Eq, Show)
@@ -30,20 +25,20 @@ readBoard = do
   ls <- lines <$> getContents
   return $ M.fromList $ linesToBoard ls
 
-allNeighbours2 :: Board -> Point -> [[Point]]
-allNeighbours2 board (row, column) = [[(row - 1, column), (row - 2, column)],
-                                      [(row, column + 1), (row, column + 2)],
-                                      [(row + 1, column), (row + 2, column)],
-                                      [(row, column - 1), (row, column - 2)]]
+allNeighbours2 :: Point -> [[Point]]
+allNeighbours2 (row, column) = [[(row - 1, column), (row - 2, column)],
+                                [(row, column + 1), (row, column + 2)],
+                                [(row + 1, column), (row + 2, column)],
+                                [(row, column - 1), (row, column - 2)]]
 
 tryFinishOff2 :: Board -> Maybe Point
-tryFinishOff2 board = find (\p -> any (all $ cellHasType Hit board) $ allNeighbours2 board p) $ cellsByType board Unknown
+tryFinishOff2 board = find (any (all $ cellHasType Hit board) . allNeighbours2) $ cellsByType board Unknown
 
-allNeighbours :: Board -> Point -> [Point]
-allNeighbours board (row, column) = [(row - 1, column), (row, column + 1), (row + 1, column), (row, column - 1)]
+allNeighbours :: Point -> [Point]
+allNeighbours (row, column) = [(row - 1, column), (row, column + 1), (row + 1, column), (row, column - 1)]
 
 tryFinishOff :: Board -> Maybe Point
-tryFinishOff board = find (any (cellHasType Hit board) . allNeighbours board) $ cellsByType board Unknown
+tryFinishOff board = find (any (cellHasType Hit board) . allNeighbours) $ cellsByType board Unknown
 
 cellHasType :: CellType -> Board -> Point -> Bool
 cellHasType cellType board p = case M.lookup p board of
