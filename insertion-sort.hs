@@ -8,10 +8,10 @@ shifts [] = 0
 shifts (x:xs) = (shifts1 x xs) + (shifts xs)
 
 getValue :: Read a => IO a
-getValue = fmap read $ getLine
+getValue = liftM read $ getLine
 
 getValues :: Read a => IO [a]
-getValues = fmap (map read . words) $ getLine
+getValues = liftM (map read . words) $ getLine
 
 main :: IO ()
 main = do
