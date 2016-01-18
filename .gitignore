@@ -1,2 +1,4 @@
 *~
 *_flymake.hs
+.cabal-sandbox
+cabal.sandbox.config
