@@ -7,14 +7,27 @@ import qualified Data.Scientific as S
 import qualified Data.Text.IO as T
 
 
-parseInteger :: (Integral a, Bounded a) => Parser a
-parseInteger = do
-  mResult <- S.toBoundedInteger <$> scientific
-  case mResult of
+guardMaybe :: Monad m => String -> Maybe a -> m a
+guardMaybe err m =
+  case m of
     Nothing ->
-      fail "Expected number"
-    Just result ->
-      return result
+      fail err
+    Just res ->
+      return res
+
+
+guardEither :: Monad m => Either String a -> m a
+guardEither e =
+  case e of
+    Left err ->
+      fail err
+    Right res ->
+      return res
+
+
+parseInteger :: (Integral a, Bounded a) => Parser a
+parseInteger =
+  (S.toBoundedInteger <$> scientific) >>= guardMaybe "Expected number"
 
 
 parseIntegersN :: (Integral a, Bounded a) => Int -> Parser [a]
@@ -56,9 +69,5 @@ solve =
 
 main :: IO ()
 main = do
-  result <- parseOnly input <$> T.getContents
-  case result of
-    Left err ->
-      fail err
-    Right tcs ->
-      solve tcs
+  tcs <- (parseOnly input <$> T.getContents) >>= guardEither
+  solve tcs
