@@ -16,15 +16,6 @@ substrings s@(_:xs) =
     inits_ = tail . inits
 
 
-isAnagramPair :: String -> String -> Bool
-isAnagramPair s1 s2 =
-  let
-    ss1 = sort s1
-    ss2 = sort s2
-  in
-    ss1 == ss2
-
-
 pairs :: [a] -> [(a, a)]
 pairs [] = []
 pairs (x:xs) =
@@ -34,10 +25,10 @@ pairs (x:xs) =
 solve :: String -> Int
 solve str =
   let
-    g = groupBy ((==) `on` length) $ sortBy (compare `on` length) $ substrings str
+    g = groupBy ((==) `on` length) $ sortBy (compare `on` length) $ map sort $ substrings str
 
     solveG =
-      length . filter (uncurry isAnagramPair) . pairs
+      length . filter (uncurry (==)) . pairs
   in
     sum $ map solveG g 
 
